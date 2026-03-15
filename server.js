@@ -246,7 +246,10 @@ app.post('/stripe/create-checkout', authMiddleware, async (req, res) => {
             metadata: { user_id: req.user.id },
         });
         res.json({ url: session.url });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+    console.error("❌ Stripe error:", err);
+    res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
