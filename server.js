@@ -14,49 +14,37 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// ⚠️ IMPORTANT : le webhook doit être AVANT express.json()
+// ⚠️ WEBHOOK AVANT express.json()
 app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     console.log("📨 Webhook reçu !");
-    let stripe;
-    try { stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); } 
-    catch(e) { return res.status(500).send("Stripe non disponible"); }
-
-    const sig = req.headers['stripe-signature'];
-    console.log("🔑 Signature:", sig ? "présente" : "absente");
-
-    let event;
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-        console.log("✅ Événement reçu:", event.type);
-    } catch (err) {
-        console.error("❌ Webhook erreur:", err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+        const body = JSON.parse(req.body.toString());
+        console.log("📋 Type événement:", body.type);
+        console.log("📋 User ID:", body.data?.object?.metadata?.user_id);
 
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        console.log("💳 Paiement complété! User ID:", session.metadata?.user_id);
-        console.log("📋 Mode:", session.mode);
-        if (session.mode === 'subscription' && session.metadata?.user_id) {
-            try {
+        if (body.type === 'checkout.session.completed') {
+            const session = body.data.object;
+            console.log("💳 Session complète:", JSON.stringify(session.metadata));
+            if (session.metadata?.user_id) {
                 await pool.query(
                     "UPDATE users SET plan = 'premium', stripe_subscription_id = $1 WHERE id = $2",
                     [session.subscription, session.metadata.user_id]
                 );
-                console.log("⭐ Compte premium activé pour user:", session.metadata.user_id);
-            } catch(err) {
-                console.error("❌ Erreur DB premium:", err.message);
+                console.log("⭐ Premium activé pour user:", session.metadata.user_id);
             }
         }
-    }
 
-    if (event.type === 'customer.subscription.deleted') {
-        const sub = event.data.object;
-        await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
-        console.log("⬇️ Abonnement annulé.");
-    }
+        if (body.type === 'customer.subscription.deleted') {
+            const sub = body.data.object;
+            await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
+            console.log("⬇️ Abonnement annulé.");
+        }
 
-    res.json({ received: true });
+        res.json({ received: true });
+    } catch(err) {
+        console.error("❌ Erreur webhook:", err.message);
+        res.status(400).send("Erreur: " + err.message);
+    }
 });
 
 app.use(cors());
@@ -276,7 +264,10 @@ app.post('/stripe/create-checkout', authMiddleware, async (req, res) => {
             line_items: [{
                 price_data: {
                     currency: 'eur',
-                    product_data: { name: 'InsightEngine Premium', description: 'Analyses illimitées (500 pages) + historique + support 24/7' },
+                    product_data: {
+                        name: 'InsightEngine Premium',
+                        description: 'Analyses illimitées (500 pages) + historique + support 24/7'
+                    },
                     unit_amount: 999,
                     recurring: { interval: 'month' },
                 },
