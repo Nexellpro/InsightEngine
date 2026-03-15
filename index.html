@@ -38,6 +38,10 @@
         .tab-active { background: #1e293b; color: white; }
         .spinner { width: 56px; height: 56px; border: 4px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideIn { from { transform: translateX(120px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120px); opacity: 0; } }
+        .notif-slide-in { animation: slideIn 0.4s ease forwards; }
+        .notif-slide-out { animation: slideOut 0.4s ease forwards; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -319,7 +323,7 @@
     </div>
 </footer>
 
-<!-- ═══════════════ MODAL AUTH ═══════════════ -->
+<!-- MODAL AUTH -->
 <div id="modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
         <div class="flex gap-2 mb-7 bg-slate-100 p-1 rounded-2xl">
@@ -344,11 +348,9 @@
     </div>
 </div>
 
-<!-- ═══════════════ MODAL PROFIL ═══════════════ -->
+<!-- MODAL PROFIL -->
 <div id="modalProfile" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-
-        <!-- HEADER -->
         <div class="flex items-center justify-between p-6 border-b border-slate-100">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -363,9 +365,7 @@
                 <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-
         <div class="p-6">
-            <!-- BANNER PLAN -->
             <div id="profilePlanBanner" class="mb-6 rounded-2xl p-5 flex items-center justify-between">
                 <div>
                     <p id="profilePlanTitle" class="font-black text-base"></p>
@@ -375,88 +375,44 @@
                     Passer en Premium ⭐
                 </button>
             </div>
-
-            <!-- TABS -->
             <div class="flex gap-6 border-b border-slate-200 mb-6">
                 <button onclick="switchProfileTab('infos')" class="profile-tab active pb-3 text-sm font-semibold" id="tabInfos">Informations</button>
                 <button onclick="switchProfileTab('security')" class="profile-tab pb-3 text-sm font-semibold" id="tabSecurity">Sécurité</button>
             </div>
-
-            <!-- TAB INFOS -->
             <div id="profileInfos">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Prénom</label>
-                        <input id="profilePrenom" type="text" placeholder="Votre prénom" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom</label>
-                        <input id="profileNom" type="text" placeholder="Votre nom" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Adresse</label>
-                        <input id="profileAdresse" type="text" placeholder="Votre adresse" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ville</label>
-                        <input id="profileVille" type="text" placeholder="Votre ville" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Code postal</label>
-                        <input id="profileCodePostal" type="text" placeholder="Code postal" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pays</label>
-                        <input id="profilePays" type="text" placeholder="Votre pays" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Prénom</label><input id="profilePrenom" type="text" placeholder="Votre prénom" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom</label><input id="profileNom" type="text" placeholder="Votre nom" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                    <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Adresse</label><input id="profileAdresse" type="text" placeholder="Votre adresse" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ville</label><input id="profileVille" type="text" placeholder="Votre ville" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                    <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Code postal</label><input id="profileCodePostal" type="text" placeholder="Code postal" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                    <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pays</label><input id="profilePays" type="text" placeholder="Votre pays" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                 </div>
                 <div id="profileInfosMsg" class="hidden mt-4 text-sm font-semibold text-center py-2 rounded-xl"></div>
-                <button onclick="saveProfileInfos()" class="mt-5 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition text-sm w-full">
-                    Enregistrer les modifications
-                </button>
+                <button onclick="saveProfileInfos()" class="mt-5 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition text-sm w-full">Enregistrer les modifications</button>
             </div>
-
-            <!-- TAB SÉCURITÉ -->
             <div id="profileSecurity" class="hidden space-y-5">
-                <!-- Changer email -->
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
                     <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                         Changer l'adresse email
                     </h4>
                     <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouvel email</label>
-                            <input id="newEmail" type="email" placeholder="nouveau@email.com" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe actuel (confirmation)</label>
-                            <input id="emailConfirmPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
-                        </div>
+                        <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouvel email</label><input id="newEmail" type="email" placeholder="nouveau@email.com" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"></div>
+                        <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe actuel</label><input id="emailConfirmPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"></div>
                     </div>
                     <div id="emailMsg" class="hidden mt-3 text-sm font-semibold text-center py-2 rounded-xl"></div>
                     <button onclick="changeEmail()" class="mt-4 bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition text-sm">Mettre à jour l'email</button>
                 </div>
-
-                <!-- Changer mot de passe -->
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
                     <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                         Changer le mot de passe
                     </h4>
                     <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe actuel</label>
-                            <input id="currentPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouveau mot de passe</label>
-                            <input id="newPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirmer le nouveau mot de passe</label>
-                            <input id="confirmPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
-                        </div>
+                        <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe actuel</label><input id="currentPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"></div>
+                        <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouveau mot de passe</label><input id="newPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"></div>
+                        <div><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirmer</label><input id="confirmPassword" type="password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl px-4 py-3 mt-1 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"></div>
                     </div>
                     <div id="passwordMsg" class="hidden mt-3 text-sm font-semibold text-center py-2 rounded-xl"></div>
                     <button onclick="changePassword()" class="mt-4 bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition text-sm">Changer le mot de passe</button>
@@ -466,7 +422,7 @@
     </div>
 </div>
 
-<!-- ═══════════════ MODAL PRICING ═══════════════ -->
+<!-- MODAL PRICING -->
 <div id="modalPricing" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl">
         <h3 class="text-2xl font-black text-center text-slate-900 mb-1">Passez en Premium</h3>
@@ -499,13 +455,37 @@
     let currentUser = null;
     let guestAnalysisDone = false;
 
+    // ─── NOTIFICATION PREMIUM ────────────────────────────────────
+    function showPremiumNotification() {
+        const notif = document.createElement('div');
+        notif.className = 'notif-slide-in';
+        notif.style.cssText = 'position:fixed;top:24px;right:24px;z-index:9999;';
+        notif.innerHTML = `
+            <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:white;padding:20px 24px;border-radius:20px;box-shadow:0 20px 40px rgba(59,130,246,0.4);display:flex;align-items:center;gap:16px;max-width:360px;">
+                <div style="font-size:2.2rem;flex-shrink:0;">⭐</div>
+                <div>
+                    <div style="font-weight:800;font-size:1rem;margin-bottom:4px;font-family:Sora,sans-serif;">Bienvenue en Premium !</div>
+                    <div style="font-size:0.8rem;opacity:0.9;">Analyses illimitées · 500 pages · Historique</div>
+                </div>
+                <button onclick="this.closest('.notif-slide-in').remove()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>
+            </div>
+        `;
+        document.body.appendChild(notif);
+        setTimeout(() => {
+            notif.classList.remove('notif-slide-in');
+            notif.classList.add('notif-slide-out');
+            setTimeout(() => notif.remove(), 400);
+        }, 5000);
+    }
+
+    // ─── INIT ────────────────────────────────────────────────────
     window.onload = async () => {
         const token = localStorage.getItem('token');
         if (token) await fetchMe();
         const params = new URLSearchParams(window.location.search);
         if (params.get('payment') === 'success') {
             await fetchMe();
-            alert("🎉 Bienvenue en Premium !");
+            showPremiumNotification();
             history.replaceState({}, '', '/');
         }
         showPage('home');
@@ -637,9 +617,7 @@
         document.getElementById('modalProfile').classList.remove('hidden');
     }
 
-    function closeProfileModal() {
-        document.getElementById('modalProfile').classList.add('hidden');
-    }
+    function closeProfileModal() { document.getElementById('modalProfile').classList.add('hidden'); }
 
     function switchProfileTab(tab) {
         document.getElementById('profileInfos').classList.toggle('hidden', tab !== 'infos');
@@ -728,11 +706,11 @@
     // ─── STRIPE ──────────────────────────────────────────────────
     async function subscribePremium() {
         document.getElementById('modalPricing').classList.add('hidden');
-        if (!currentUser) { alert("Créez un compte pour souscrire."); return showModal('register'); }
-        if (!STRIPE_ENABLED) return alert("💳 Paiement disponible bientôt !");
+        if (!currentUser) { showPremiumNotification(); return showModal('register'); }
         const token = localStorage.getItem('token');
         const res = await fetch('/stripe/create-checkout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
+        if (data.error) return showNotification('❌ ' + data.error, 'red');
         if (data.url) window.location.href = data.url;
     }
 
