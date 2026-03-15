@@ -9,10 +9,54 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
-// ─── CONNEXION POSTGRESQL ─────────────────────────────────────────
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// ⚠️ IMPORTANT : le webhook doit être AVANT express.json()
+app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    console.log("📨 Webhook reçu !");
+    let stripe;
+    try { stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); } 
+    catch(e) { return res.status(500).send("Stripe non disponible"); }
+
+    const sig = req.headers['stripe-signature'];
+    console.log("🔑 Signature:", sig ? "présente" : "absente");
+
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        console.log("✅ Événement reçu:", event.type);
+    } catch (err) {
+        console.error("❌ Webhook erreur:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        console.log("💳 Paiement complété! User ID:", session.metadata?.user_id);
+        console.log("📋 Mode:", session.mode);
+        if (session.mode === 'subscription' && session.metadata?.user_id) {
+            try {
+                await pool.query(
+                    "UPDATE users SET plan = 'premium', stripe_subscription_id = $1 WHERE id = $2",
+                    [session.subscription, session.metadata.user_id]
+                );
+                console.log("⭐ Compte premium activé pour user:", session.metadata.user_id);
+            } catch(err) {
+                console.error("❌ Erreur DB premium:", err.message);
+            }
+        }
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+        const sub = event.data.object;
+        await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
+        console.log("⬇️ Abonnement annulé.");
+    }
+
+    res.json({ received: true });
 });
 
 app.use(cors());
@@ -21,7 +65,6 @@ app.use(express.static(__dirname));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'insightengine_secret_key';
 
-// Stripe optionnel
 let stripe = null;
 const stripeKey = process.env.STRIPE_SECRET_KEY;
 if (stripeKey && !stripeKey.includes('placeholder')) {
@@ -31,7 +74,6 @@ if (stripeKey && !stripeKey.includes('placeholder')) {
     console.log("⚠️ Stripe non configuré — paiements désactivés.");
 }
 
-// ─── CRÉATION DES TABLES ──────────────────────────────────────────
 async function initDB() {
     try {
         await pool.query(`
@@ -224,7 +266,7 @@ app.put('/auth/change-password', authMiddleware, async (req, res) => {
     }
 });
 
-// ─── STRIPE ───────────────────────────────────────────────────────
+// ─── STRIPE : CHECKOUT ────────────────────────────────────────────
 app.post('/stripe/create-checkout', authMiddleware, async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Paiement non disponible pour l'instant." });
     try {
@@ -241,35 +283,16 @@ app.post('/stripe/create-checkout', authMiddleware, async (req, res) => {
                 quantity: 1,
             }],
             customer_email: req.user.email,
-            success_url: `${process.env.APP_URL || 'http://localhost:3000'}/?payment=success`,
-            cancel_url: `${process.env.APP_URL || 'http://localhost:3000'}/`,
-            metadata: { user_id: req.user.id },
+            success_url: `${process.env.APP_URL}/?payment=success`,
+            cancel_url: `${process.env.APP_URL}/`,
+            metadata: { user_id: String(req.user.id) },
         });
+        console.log("💳 Session créée pour user:", req.user.id);
         res.json({ url: session.url });
-    } catch (err) { 
-    console.error("❌ Stripe error:", err);
-    res.status(500).json({ error: err.message }); 
+    } catch (err) {
+        console.error("❌ Stripe error:", err.message);
+        res.status(500).json({ error: err.message });
     }
-});
-
-app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    if (!stripe) return res.status(503).json({ error: "Stripe non configuré." });
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try { event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET); }
-    catch (err) { return res.status(400).send(`Webhook Error: ${err.message}`); }
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        if (session.mode === 'subscription' && session.metadata.user_id) {
-            await pool.query("UPDATE users SET plan = 'premium', stripe_subscription_id = $1 WHERE id = $2",
-                [session.subscription, session.metadata.user_id]);
-        }
-    }
-    if (event.type === 'customer.subscription.deleted') {
-        const sub = event.data.object;
-        await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
-    }
-    res.json({ received: true });
 });
 
 // ─── ANALYSE ──────────────────────────────────────────────────────
@@ -281,7 +304,7 @@ app.post('/analyze', optionalAuth, async (req, res) => {
 
         if (req.user) {
             const result = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
-            let user = await checkAndResetMonthlyCounter(result.rows[0]);
+            await checkAndResetMonthlyCounter(result.rows[0]);
             const freshResult = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
             const freshUser = freshResult.rows[0];
             const limit = LIMITS[freshUser.plan] || LIMITS.free;
@@ -334,6 +357,16 @@ app.get('/history', authMiddleware, async (req, res) => {
             [req.user.id]
         );
         res.json(result.rows.map(r => ({ ...r, points_cles: JSON.parse(r.points_cles) })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── ROUTE TEMPORAIRE PREMIUM ─────────────────────────────────────
+app.get('/make-premium', async (req, res) => {
+    try {
+        await pool.query("UPDATE users SET plan = 'premium' WHERE email = $1", ['marouane.belhadj@hotmail.com']);
+        res.json({ success: true, message: "Compte passé en Premium !" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
