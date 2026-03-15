@@ -3,12 +3,17 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const db = new sqlite3.Database('./database.db');
+
+// ─── CONNEXION POSTGRESQL ─────────────────────────────────────────
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -16,6 +21,7 @@ app.use(express.static(__dirname));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'insightengine_secret_key';
 
+// Stripe optionnel
 let stripe = null;
 const stripeKey = process.env.STRIPE_SECRET_KEY;
 if (stripeKey && !stripeKey.includes('placeholder')) {
@@ -25,41 +31,44 @@ if (stripeKey && !stripeKey.includes('placeholder')) {
     console.log("⚠️ Stripe non configuré — paiements désactivés.");
 }
 
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        password TEXT,
-        nom TEXT DEFAULT '',
-        prenom TEXT DEFAULT '',
-        adresse TEXT DEFAULT '',
-        ville TEXT DEFAULT '',
-        code_postal TEXT DEFAULT '',
-        pays TEXT DEFAULT '',
-        plan TEXT DEFAULT 'free',
-        analyses_this_month INTEGER DEFAULT 0,
-        last_reset_month TEXT DEFAULT '',
-        stripe_subscription_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, (err) => {
-        if (err) console.error("❌ Erreur table users:", err.message);
-        else console.log("✅ Table users prête.");
-    });
-
-    db.run(`CREATE TABLE IF NOT EXISTS analyses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        filename TEXT,
-        resume TEXT,
-        points_cles TEXT,
-        recommandation TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )`, (err) => {
-        if (err) console.error("❌ Erreur table analyses:", err.message);
-        else console.log("✅ Table analyses prête.");
-    });
-});
+// ─── CRÉATION DES TABLES ──────────────────────────────────────────
+async function initDB() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT,
+                nom TEXT DEFAULT '',
+                prenom TEXT DEFAULT '',
+                adresse TEXT DEFAULT '',
+                ville TEXT DEFAULT '',
+                code_postal TEXT DEFAULT '',
+                pays TEXT DEFAULT '',
+                plan TEXT DEFAULT 'free',
+                analyses_this_month INTEGER DEFAULT 0,
+                last_reset_month TEXT DEFAULT '',
+                stripe_subscription_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS analyses (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                filename TEXT,
+                resume TEXT,
+                points_cles TEXT,
+                recommandation TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log("✅ Tables PostgreSQL prêtes.");
+    } catch (err) {
+        console.error("❌ Erreur init DB:", err.message);
+    }
+}
+initDB();
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -88,16 +97,16 @@ const LIMITS = {
     premium: { analyses: Infinity, pages: 500 },
 };
 
-function checkAndResetMonthlyCounter(user, callback) {
+async function checkAndResetMonthlyCounter(user) {
     const currentMonth = new Date().toISOString().slice(0, 7);
     if (user.last_reset_month !== currentMonth) {
-        db.run("UPDATE users SET analyses_this_month = 0, last_reset_month = ? WHERE id = ?",
-            [currentMonth, user.id],
-            () => callback({ ...user, analyses_this_month: 0, last_reset_month: currentMonth })
+        await pool.query(
+            "UPDATE users SET analyses_this_month = 0, last_reset_month = $1 WHERE id = $2",
+            [currentMonth, user.id]
         );
-    } else {
-        callback(user);
+        return { ...user, analyses_this_month: 0, last_reset_month: currentMonth };
     }
+    return user;
 }
 
 function optionalAuth(req, res, next) {
@@ -120,66 +129,80 @@ app.post('/auth/register', async (req, res) => {
     try {
         const hash = await bcrypt.hash(password, 10);
         const currentMonth = new Date().toISOString().slice(0, 7);
-        db.run("INSERT INTO users (email, password, last_reset_month) VALUES (?, ?, ?)",
-            [email, hash, currentMonth],
-            function(err) {
-                if (err) return res.status(400).json({ error: "Cet email est déjà utilisé." });
-                const token = jwt.sign({ id: this.lastID, email }, JWT_SECRET, { expiresIn: '7d' });
-                res.json({ token, user: { id: this.lastID, email, plan: 'free', analyses_this_month: 0 } });
-            }
+        const result = await pool.query(
+            "INSERT INTO users (email, password, last_reset_month) VALUES ($1, $2, $3) RETURNING id",
+            [email, hash, currentMonth]
         );
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        const token = jwt.sign({ id: result.rows[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, user: { id: result.rows[0].id, email, plan: 'free', analyses_this_month: 0 } });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: "Cet email est déjà utilisé." });
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── AUTH : CONNEXION ──────────────────────────────────────────────
-app.post('/auth/login', (req, res) => {
+app.post('/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    db.get("SELECT * FROM users WHERE email = ?", [email], async (err, user) => {
-        if (err || !user) return res.status(400).json({ error: "Email ou mot de passe incorrect." });
+    try {
+        const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        const user = result.rows[0];
+        if (!user) return res.status(400).json({ error: "Email ou mot de passe incorrect." });
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(400).json({ error: "Email ou mot de passe incorrect." });
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: { id: user.id, email: user.email, plan: user.plan, analyses_this_month: user.analyses_this_month } });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── AUTH : PROFIL ─────────────────────────────────────────────────
-app.get('/auth/me', authMiddleware, (req, res) => {
-    db.get("SELECT id, email, nom, prenom, adresse, ville, code_postal, pays, plan, analyses_this_month, last_reset_month FROM users WHERE id = ?",
-        [req.user.id], (err, user) => {
-            if (err || !user) return res.status(404).json({ error: "Utilisateur introuvable." });
-            checkAndResetMonthlyCounter(user, (updatedUser) => res.json(updatedUser));
-        }
-    );
+app.get('/auth/me', authMiddleware, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT id, email, nom, prenom, adresse, ville, code_postal, pays, plan, analyses_this_month, last_reset_month FROM users WHERE id = $1",
+            [req.user.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ error: "Utilisateur introuvable." });
+        const user = await checkAndResetMonthlyCounter(result.rows[0]);
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── PROFIL : MODIFIER INFOS ───────────────────────────────────────
-app.put('/auth/profile', authMiddleware, (req, res) => {
+app.put('/auth/profile', authMiddleware, async (req, res) => {
     const { nom, prenom, adresse, ville, code_postal, pays } = req.body;
-    db.run(
-        "UPDATE users SET nom = ?, prenom = ?, adresse = ?, ville = ?, code_postal = ?, pays = ? WHERE id = ?",
-        [nom || '', prenom || '', adresse || '', ville || '', code_postal || '', pays || '', req.user.id],
-        function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, message: "Profil mis à jour." });
-        }
-    );
+    try {
+        await pool.query(
+            "UPDATE users SET nom=$1, prenom=$2, adresse=$3, ville=$4, code_postal=$5, pays=$6 WHERE id=$7",
+            [nom||'', prenom||'', adresse||'', ville||'', code_postal||'', pays||'', req.user.id]
+        );
+        res.json({ success: true, message: "Profil mis à jour." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── PROFIL : CHANGER EMAIL ────────────────────────────────────────
-app.put('/auth/change-email', authMiddleware, (req, res) => {
+app.put('/auth/change-email', authMiddleware, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email et mot de passe requis." });
-    db.get("SELECT * FROM users WHERE id = ?", [req.user.id], async (err, user) => {
-        if (err || !user) return res.status(404).json({ error: "Utilisateur introuvable." });
+    try {
+        const result = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+        const user = result.rows[0];
+        if (!user) return res.status(404).json({ error: "Utilisateur introuvable." });
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(400).json({ error: "Mot de passe incorrect." });
-        db.run("UPDATE users SET email = ? WHERE id = ?", [email, req.user.id], function(err) {
-            if (err) return res.status(400).json({ error: "Cet email est déjà utilisé." });
-            const token = jwt.sign({ id: req.user.id, email }, JWT_SECRET, { expiresIn: '7d' });
-            res.json({ success: true, token, message: "Email mis à jour." });
-        });
-    });
+        await pool.query("UPDATE users SET email = $1 WHERE id = $2", [email, req.user.id]);
+        const token = jwt.sign({ id: req.user.id, email }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, token, message: "Email mis à jour." });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: "Cet email est déjà utilisé." });
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── PROFIL : CHANGER MOT DE PASSE ────────────────────────────────
@@ -187,16 +210,18 @@ app.put('/auth/change-password', authMiddleware, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) return res.status(400).json({ error: "Les deux mots de passe sont requis." });
     if (newPassword.length < 6) return res.status(400).json({ error: "Le nouveau mot de passe doit faire au moins 6 caractères." });
-    db.get("SELECT * FROM users WHERE id = ?", [req.user.id], async (err, user) => {
-        if (err || !user) return res.status(404).json({ error: "Utilisateur introuvable." });
+    try {
+        const result = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+        const user = result.rows[0];
+        if (!user) return res.status(404).json({ error: "Utilisateur introuvable." });
         const valid = await bcrypt.compare(currentPassword, user.password);
         if (!valid) return res.status(400).json({ error: "Mot de passe actuel incorrect." });
         const hash = await bcrypt.hash(newPassword, 10);
-        db.run("UPDATE users SET password = ? WHERE id = ?", [hash, req.user.id], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, message: "Mot de passe mis à jour." });
-        });
-    });
+        await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hash, req.user.id]);
+        res.json({ success: true, message: "Mot de passe mis à jour." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── STRIPE ───────────────────────────────────────────────────────
@@ -224,7 +249,7 @@ app.post('/stripe/create-checkout', authMiddleware, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/stripe/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     if (!stripe) return res.status(503).json({ error: "Stripe non configuré." });
     const sig = req.headers['stripe-signature'];
     let event;
@@ -233,13 +258,13 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), (req, res
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         if (session.mode === 'subscription' && session.metadata.user_id) {
-            db.run("UPDATE users SET plan = 'premium', stripe_subscription_id = ? WHERE id = ?",
+            await pool.query("UPDATE users SET plan = 'premium', stripe_subscription_id = $1 WHERE id = $2",
                 [session.subscription, session.metadata.user_id]);
         }
     }
     if (event.type === 'customer.subscription.deleted') {
         const sub = event.data.object;
-        db.run("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = ?", [sub.id]);
+        await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
     }
     res.json({ received: true });
 });
@@ -252,18 +277,15 @@ app.post('/analyze', optionalAuth, async (req, res) => {
         if (!activeModel) return res.status(503).json({ error: "Aucun modèle IA n'est prêt." });
 
         if (req.user) {
-            const user = await new Promise((resolve, reject) =>
-                db.get("SELECT * FROM users WHERE id = ?", [req.user.id], (err, row) => err ? reject(err) : resolve(row)));
-            await new Promise((resolve) => checkAndResetMonthlyCounter(user, resolve));
-            const freshUser = await new Promise((resolve, reject) =>
-                db.get("SELECT * FROM users WHERE id = ?", [req.user.id], (err, row) => err ? reject(err) : resolve(row)));
+            const result = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+            let user = await checkAndResetMonthlyCounter(result.rows[0]);
+            const freshResult = await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id]);
+            const freshUser = freshResult.rows[0];
             const limit = LIMITS[freshUser.plan] || LIMITS.free;
             if (freshUser.plan !== 'premium' && freshUser.analyses_this_month >= limit.analyses) {
                 return res.status(403).json({
                     error: "quota_exceeded",
                     message: `Vous avez atteint votre limite de ${limit.analyses} analyses gratuites ce mois-ci.`,
-                    analyses_used: freshUser.analyses_this_month,
-                    analyses_limit: limit.analyses
                 });
             }
         }
@@ -280,14 +302,15 @@ Texte: ${req.body.text.substring(0, 50000)}`;
         const parsed = JSON.parse(jsonMatch[0]);
 
         if (req.user) {
-            db.run("UPDATE users SET analyses_this_month = analyses_this_month + 1 WHERE id = ?", [req.user.id]);
-            db.get("SELECT plan FROM users WHERE id = ?", [req.user.id], (err, u) => {
-                if (u?.plan === 'premium') {
-                    db.run("INSERT INTO analyses (user_id, filename, resume, points_cles, recommandation) VALUES (?, ?, ?, ?, ?)",
-                        [req.user.id, req.body.filename || 'document.pdf', parsed.resume,
-                         JSON.stringify(parsed.points_cles), parsed.recommandation]);
-                }
-            });
+            await pool.query("UPDATE users SET analyses_this_month = analyses_this_month + 1 WHERE id = $1", [req.user.id]);
+            const userResult = await pool.query("SELECT plan FROM users WHERE id = $1", [req.user.id]);
+            if (userResult.rows[0]?.plan === 'premium') {
+                await pool.query(
+                    "INSERT INTO analyses (user_id, filename, resume, points_cles, recommandation) VALUES ($1, $2, $3, $4, $5)",
+                    [req.user.id, req.body.filename || 'document.pdf', parsed.resume,
+                     JSON.stringify(parsed.points_cles), parsed.recommandation]
+                );
+            }
         }
 
         console.log("✨ Analyse réussie.");
@@ -299,16 +322,18 @@ Texte: ${req.body.text.substring(0, 50000)}`;
 });
 
 // ─── HISTORIQUE ───────────────────────────────────────────────────
-app.get('/history', authMiddleware, (req, res) => {
-    db.get("SELECT plan FROM users WHERE id = ?", [req.user.id], (err, user) => {
-        if (user?.plan !== 'premium') return res.status(403).json({ error: "Fonctionnalité Premium uniquement." });
-        db.all("SELECT id, filename, resume, points_cles, recommandation, created_at FROM analyses WHERE user_id = ? ORDER BY created_at DESC",
-            [req.user.id], (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json(rows.map(r => ({ ...r, points_cles: JSON.parse(r.points_cles) })));
-            }
+app.get('/history', authMiddleware, async (req, res) => {
+    try {
+        const userResult = await pool.query("SELECT plan FROM users WHERE id = $1", [req.user.id]);
+        if (userResult.rows[0]?.plan !== 'premium') return res.status(403).json({ error: "Fonctionnalité Premium uniquement." });
+        const result = await pool.query(
+            "SELECT id, filename, resume, points_cles, recommandation, created_at FROM analyses WHERE user_id = $1 ORDER BY created_at DESC",
+            [req.user.id]
         );
-    });
+        res.json(result.rows.map(r => ({ ...r, points_cles: JSON.parse(r.points_cles) })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/models', async (req, res) => {
@@ -321,8 +346,7 @@ app.get('/models', async (req, res) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-process.on('SIGINT', () => {
-    db.close(() => { console.log("🛑 DB fermée."); process.exit(0); });
-});
+process.on('SIGINT', () => { pool.end(); process.exit(0); });
 
-app.listen(3000, () => console.log("🚀 Serveur : http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Serveur : http://localhost:${PORT}`));

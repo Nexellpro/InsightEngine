@@ -19,7 +19,7 @@
     "express-session": "^1.19.0",
     "jsonwebtoken": "^9.0.3",
     "node-fetch": "^3.3.2",
-    "sqlite3": "^6.0.1",
+    "pg": "^8.20.0",
     "stripe": "^20.4.1"
   }
 }
