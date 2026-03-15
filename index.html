@@ -45,6 +45,11 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .legal-content h2 { font-family: 'Sora', sans-serif; font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .legal-content p { color: #475569; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.75rem; }
+        .legal-content ul { list-style: disc; padding-left: 1.5rem; color: #475569; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.75rem; }
+        .contact-input { width: 100%; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500; outline: none; transition: all 0.2s; }
+        .contact-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -316,9 +321,9 @@
         </div>
         <p class="text-sm">© 2025 InsightEngine · Propulsé par Gemini AI</p>
         <div class="flex gap-6 text-sm">
-            <a href="#" class="hover:text-white transition">Confidentialité</a>
-            <a href="#" class="hover:text-white transition">CGU</a>
-            <a href="#" class="hover:text-white transition">Contact</a>
+            <button onclick="openModal('modalConfidentialite')" class="hover:text-white transition">Confidentialité</button>
+            <button onclick="openModal('modalCGU')" class="hover:text-white transition">CGU</button>
+            <button onclick="openModal('modalContact')" class="hover:text-white transition">Contact</button>
         </div>
     </div>
 </footer>
@@ -444,6 +449,182 @@
     </div>
 </div>
 
+<!-- MODAL CGU -->
+<div id="modalCGU" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
+            <div>
+                <h3 class="font-black text-slate-900 text-lg">Conditions Générales d'Utilisation</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Dernière mise à jour : janvier 2025</p>
+            </div>
+            <button onclick="closeModal('modalCGU')" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition flex-shrink-0 ml-4">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="overflow-y-auto p-6 legal-content">
+            <h2>1. Objet</h2>
+            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation du service InsightEngine, édité par Nexell. En accédant au service, vous acceptez sans réserve les présentes conditions.</p>
+
+            <h2>2. Description du service</h2>
+            <p>InsightEngine est un outil d'analyse de documents PDF par intelligence artificielle. Il permet aux utilisateurs d'obtenir des résumés, points clés et recommandations à partir de leurs documents. Le service est accessible via le site <strong>insightengine-production-a4a8.up.railway.app</strong>.</p>
+
+            <h2>3. Accès au service</h2>
+            <p>L'accès au service est proposé sous deux formules :</p>
+            <ul>
+                <li><strong>Formule Gratuite :</strong> 3 analyses par mois, documents limités à 10 pages.</li>
+                <li><strong>Formule Premium :</strong> analyses illimitées, documents jusqu'à 500 pages, historique des analyses, au prix de 9,99 € par mois.</li>
+            </ul>
+            <p>L'inscription est requise pour accéder au service. L'utilisateur s'engage à fournir des informations exactes lors de la création de son compte.</p>
+
+            <h2>4. Obligations de l'utilisateur</h2>
+            <p>L'utilisateur s'engage à :</p>
+            <ul>
+                <li>Ne pas utiliser le service à des fins illicites ou contraires aux présentes CGU.</li>
+                <li>Ne pas télécharger de documents contenant des données sensibles de tiers sans autorisation.</li>
+                <li>Ne pas tenter de contourner les limitations techniques du service.</li>
+                <li>Maintenir la confidentialité de ses identifiants de connexion.</li>
+            </ul>
+
+            <h2>5. Propriété intellectuelle</h2>
+            <p>L'ensemble des éléments composant le service (logo, interface, code, algorithmes) est la propriété exclusive de Nexell et est protégé par les lois en vigueur sur la propriété intellectuelle. Toute reproduction sans autorisation est interdite.</p>
+
+            <h2>6. Données personnelles</h2>
+            <p>Le traitement des données personnelles est décrit dans notre Politique de Confidentialité, accessible depuis le pied de page du site.</p>
+
+            <h2>7. Limitation de responsabilité</h2>
+            <p>Les analyses produites par l'IA sont fournies à titre informatif uniquement. Nexell ne saurait être tenu responsable des décisions prises sur la base des résultats fournis par le service. Le service est fourni "en l'état", sans garantie de disponibilité continue.</p>
+
+            <h2>8. Abonnement Premium et résiliation</h2>
+            <p>L'abonnement Premium est sans engagement. L'utilisateur peut résilier à tout moment depuis son espace client ou en contactant le support. La résiliation prend effet à la fin de la période de facturation en cours. Aucun remboursement partiel ne sera effectué.</p>
+
+            <h2>9. Modification des CGU</h2>
+            <p>Nexell se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés des modifications par une notification sur le site. La poursuite de l'utilisation du service vaut acceptation des nouvelles conditions.</p>
+
+            <h2>10. Droit applicable</h2>
+            <p>Les présentes CGU sont soumises au droit français. Tout litige relatif à leur interprétation ou exécution sera soumis aux tribunaux compétents de France.</p>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CONFIDENTIALITÉ -->
+<div id="modalConfidentialite" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100 flex-shrink-0">
+            <div>
+                <h3 class="font-black text-slate-900 text-lg">Politique de Confidentialité</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Dernière mise à jour : janvier 2025</p>
+            </div>
+            <button onclick="closeModal('modalConfidentialite')" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition flex-shrink-0 ml-4">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="overflow-y-auto p-6 legal-content">
+            <h2>1. Responsable du traitement</h2>
+            <p>Le responsable du traitement des données personnelles collectées via InsightEngine est <strong>Nexell</strong>.</p>
+
+            <h2>2. Données collectées</h2>
+            <p>Nous collectons les données suivantes :</p>
+            <ul>
+                <li><strong>Données de compte :</strong> adresse email, mot de passe (chiffré), nom, prénom, adresse postale.</li>
+                <li><strong>Données d'utilisation :</strong> nombre d'analyses réalisées, historique des analyses (Premium uniquement).</li>
+                <li><strong>Données de paiement :</strong> gérées exclusivement par Stripe. Nexell ne stocke aucune donnée bancaire.</li>
+            </ul>
+
+            <h2>3. Utilisation des données</h2>
+            <p>Vos données sont utilisées pour :</p>
+            <ul>
+                <li>Gérer votre compte et votre accès au service.</li>
+                <li>Traiter vos paiements via notre partenaire Stripe.</li>
+                <li>Améliorer le service et analyser son utilisation.</li>
+                <li>Vous contacter en cas de nécessité liée à votre compte.</li>
+            </ul>
+
+            <h2>4. Contenu des documents PDF</h2>
+            <p>Le contenu textuel de vos documents PDF est transmis à l'API Google Gemini pour analyse. Ce contenu n'est <strong>jamais stocké</strong> sur nos serveurs. Seul le résultat de l'analyse (résumé, points clés, recommandation) est conservé pour les utilisateurs Premium.</p>
+
+            <h2>5. Partage des données</h2>
+            <p>Vos données ne sont jamais vendues à des tiers. Elles peuvent être partagées uniquement avec nos prestataires techniques dans le cadre de la fourniture du service :</p>
+            <ul>
+                <li><strong>Railway</strong> — hébergement de l'application et de la base de données.</li>
+                <li><strong>Google (Gemini API)</strong> — analyse des documents.</li>
+                <li><strong>Stripe</strong> — traitement des paiements.</li>
+            </ul>
+
+            <h2>6. Conservation des données</h2>
+            <p>Vos données de compte sont conservées tant que votre compte est actif. En cas de suppression de compte, vos données sont supprimées dans un délai de 30 jours.</p>
+
+            <h2>7. Vos droits (RGPD)</h2>
+            <p>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :</p>
+            <ul>
+                <li>Droit d'accès à vos données personnelles.</li>
+                <li>Droit de rectification des données inexactes.</li>
+                <li>Droit à l'effacement ("droit à l'oubli").</li>
+                <li>Droit à la portabilité de vos données.</li>
+                <li>Droit d'opposition au traitement.</li>
+            </ul>
+            <p>Pour exercer ces droits, utilisez le formulaire de contact disponible sur le site.</p>
+
+            <h2>8. Cookies</h2>
+            <p>InsightEngine n'utilise pas de cookies de tracking ou publicitaires. Seul un token d'authentification est stocké localement dans votre navigateur pour maintenir votre session.</p>
+
+            <h2>9. Sécurité</h2>
+            <p>Vos données sont protégées par des mesures techniques appropriées : mots de passe chiffrés (bcrypt), communications sécurisées (HTTPS), accès restreint à la base de données.</p>
+
+            <h2>10. Contact</h2>
+            <p>Pour toute question relative à cette politique, utilisez le formulaire de contact disponible sur le site.</p>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CONTACT -->
+<div id="modalContact" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-slate-100">
+            <div>
+                <h3 class="font-black text-slate-900 text-lg">Nous contacter</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Nous répondons sous 48h ouvrées</p>
+            </div>
+            <button onclick="closeModal('modalContact')" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <div id="contactSuccess" class="hidden bg-green-50 border border-green-200 rounded-2xl p-6 text-center mb-4">
+                <div class="text-3xl mb-2">✅</div>
+                <p class="font-bold text-green-800">Message envoyé !</p>
+                <p class="text-green-700 text-sm mt-1">Nous vous répondrons dans les 48h ouvrées.</p>
+            </div>
+            <div id="contactForm">
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Sujet</label>
+                    <select id="contactSubject" class="contact-input mt-1 bg-white">
+                        <option value="">Choisir un sujet...</option>
+                        <option value="question">Question générale</option>
+                        <option value="bug">Signaler un bug</option>
+                        <option value="premium">Abonnement Premium</option>
+                        <option value="rgpd">Demande RGPD</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Votre email</label>
+                    <input id="contactEmail" type="email" placeholder="votre@email.com" class="contact-input mt-1">
+                </div>
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Message</label>
+                    <textarea id="contactMessage" rows="5" placeholder="Décrivez votre demande..." class="contact-input mt-1 resize-none"></textarea>
+                </div>
+                <div id="contactError" class="hidden text-red-500 text-sm font-semibold mb-3 text-center"></div>
+                <button onclick="sendContact()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Envoyer le message
+                </button>
+                <p class="text-xs text-slate-400 text-center mt-3">En envoyant ce formulaire, vous acceptez notre <button onclick="closeModal('modalContact'); openModal('modalConfidentialite')" class="underline hover:text-slate-600">politique de confidentialité</button>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -454,6 +635,38 @@
 
     let currentUser = null;
     let guestAnalysisDone = false;
+
+    // ─── MODALS GÉNÉRIQUES ────────────────────────────────────────
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) {
+        if (id) { document.getElementById(id).classList.add('hidden'); return; }
+        document.getElementById('modal').classList.add('hidden');
+    }
+
+    // ─── CONTACT ─────────────────────────────────────────────────
+    function sendContact() {
+        const subject = document.getElementById('contactSubject').value;
+        const email = document.getElementById('contactEmail').value;
+        const message = document.getElementById('contactMessage').value;
+        const errEl = document.getElementById('contactError');
+
+        if (!subject) { errEl.innerText = 'Veuillez choisir un sujet.'; errEl.classList.remove('hidden'); return; }
+        if (!email || !email.includes('@')) { errEl.innerText = 'Veuillez entrer un email valide.'; errEl.classList.remove('hidden'); return; }
+        if (!message.trim() || message.trim().length < 10) { errEl.innerText = 'Veuillez saisir un message (min. 10 caractères).'; errEl.classList.remove('hidden'); return; }
+
+        errEl.classList.add('hidden');
+        // Simulation envoi (à connecter à un vrai service email type Resend/Nodemailer)
+        document.getElementById('contactForm').classList.add('hidden');
+        document.getElementById('contactSuccess').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('contactForm').classList.remove('hidden');
+            document.getElementById('contactSuccess').classList.add('hidden');
+            document.getElementById('contactSubject').value = '';
+            document.getElementById('contactEmail').value = '';
+            document.getElementById('contactMessage').value = '';
+            closeModal('modalContact');
+        }, 3000);
+    }
 
     // ─── NOTIFICATION PREMIUM ────────────────────────────────────
     function showPremiumNotification() {
@@ -845,7 +1058,6 @@
 
     // ─── UTILITAIRES ─────────────────────────────────────────────
     function showModal(tab) { document.getElementById('modal').classList.remove('hidden'); switchTab(tab); }
-    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
     function switchTab(tab) {
         document.getElementById('formLogin').classList.toggle('hidden', tab !== 'login');
         document.getElementById('formRegister').classList.toggle('hidden', tab !== 'register');

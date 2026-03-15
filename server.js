@@ -14,16 +14,43 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// ⚠️ WEBHOOK AVANT express.json()
+// ─── STRIPE INITIALISÉ EN PREMIER ────────────────────────────────
+let stripe = null;
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (stripeKey && !stripeKey.includes('placeholder')) {
+    try { stripe = require('stripe')(stripeKey); console.log("✅ Stripe activé."); }
+    catch(e) { console.log("⚠️ Stripe non disponible:", e.message); }
+} else {
+    console.log("⚠️ Stripe non configuré — paiements désactivés.");
+}
+
+// ⚠️ WEBHOOK AVANT express.json() ET APRÈS init Stripe
 app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     console.log("📨 Webhook reçu !");
-    try {
-        const body = JSON.parse(req.body.toString());
-        console.log("📋 Type événement:", body.type);
-        console.log("📋 User ID:", body.data?.object?.metadata?.user_id);
 
-        if (body.type === 'checkout.session.completed') {
-            const session = body.data.object;
+    if (!stripe) {
+        console.error("❌ Stripe non initialisé.");
+        return res.status(500).send("Stripe non initialisé.");
+    }
+
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(
+            req.body,
+            sig,
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+        console.log("✅ Signature OK — Type:", event.type);
+    } catch (err) {
+        console.error("❌ Signature invalide:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+        if (event.type === 'checkout.session.completed') {
+            const session = event.data.object;
             console.log("💳 Session complète:", JSON.stringify(session.metadata));
             if (session.metadata?.user_id) {
                 await pool.query(
@@ -34,9 +61,12 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
             }
         }
 
-        if (body.type === 'customer.subscription.deleted') {
-            const sub = body.data.object;
-            await pool.query("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1", [sub.id]);
+        if (event.type === 'customer.subscription.deleted') {
+            const sub = event.data.object;
+            await pool.query(
+                "UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1",
+                [sub.id]
+            );
             console.log("⬇️ Abonnement annulé.");
         }
 
@@ -52,15 +82,6 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'insightengine_secret_key';
-
-let stripe = null;
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-if (stripeKey && !stripeKey.includes('placeholder')) {
-    try { stripe = require('stripe')(stripeKey); console.log("✅ Stripe activé."); }
-    catch(e) { console.log("⚠️ Stripe non disponible:", e.message); }
-} else {
-    console.log("⚠️ Stripe non configuré — paiements désactivés.");
-}
 
 async function initDB() {
     try {
@@ -353,16 +374,7 @@ app.get('/history', authMiddleware, async (req, res) => {
     }
 });
 
-// ─── ROUTE TEMPORAIRE PREMIUM ─────────────────────────────────────
-app.get('/make-premium', async (req, res) => {
-    try {
-        await pool.query("UPDATE users SET plan = 'premium' WHERE email = $1", ['marouane.belhadj@hotmail.com']);
-        res.json({ success: true, message: "Compte passé en Premium !" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
+// ─── ROUTE /models ────────────────────────────────────────────────
 app.get('/models', async (req, res) => {
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
